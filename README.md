@@ -12,7 +12,7 @@ TECHNICAL APPROACH
 
 1. PRE-PROCESS THE DATA
 
-Missing values check \n
+Missing values check '\n'
 Dummify variables \n
 Outliers detected \n
 
