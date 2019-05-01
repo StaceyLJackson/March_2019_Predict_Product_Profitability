@@ -1,0 +1,249 @@
+---
+title: "Untitled"
+author: "Stacey Jackson"
+date: "28/03/2019"
+output: word_document
+---
+
+
+```{r}
+library("caret")
+library("dplyr")
+ExistingProductAttributes<-read.csv(file="/Users/staceyjackson/Dropbox (Personal)/Ubiqum/DataAnalytics2/ProductTypePrediction/Data/existingproductattributes2017.csv", header=TRUE, sep=",")
+NewProductAttributes<-read.csv(file="/Users/staceyjackson/Dropbox (Personal)/Ubiqum/DataAnalytics2/ProductTypePrediction/Data/newproductattributes2017.csv", header=TRUE, sep=",")
+
+```
+Dummify
+```{r}
+newDataFrame<-dummyVars("~.",data=ExistingProductAttributes)
+readyData <- data.frame(predict(newDataFrame,newdata = ExistingProductAttributes))
+attributes(readyData)
+names(readyData)
+```
+Check variables
+```{r}
+str(readyData)
+```
+Summary
+```{r}
+summary(readyData)
+```
+Delete attributes with missing values
+```{r}
+readyData$BestSellersRank <- NULL
+summary(readyData)
+```
+correlation
+```{r}
+corrData <- cor(readyData)
+corrData
+```
+Heat map
+```{r}
+library(corrplot)
+corrplot(corrData)
+corrplot(corrData,type="upper",tl.pos="td",method="circle",tl.cex = 0.5,tl.col='black',diag=FALSE)
+```
+
+
+columns to remove to reduce pair-wise correlations - corresponds to 3-star Reviews, 5-star Reviews and 2-star Reviews
+```{r}
+
+findCorrelation(corrData, cutoff = .90, verbose = FALSE)
+
+findCorrelation(corrData, cutoff = .90, verbose = TRUE)
+
+names(readyData)
+
+```
+####1.Remove Product Number, x5-star review, x3-star review, x1-star review, BestSellerRank and product types####
+```{r}
+readyData2 <- readyData[-c(1:13,15,17,19)]
+```
+####1.1Plots####
+```{r}
+p <- ggplot(data=readyData2, mapping=aes(x=Volume))
+p + geom_histogram(bins=8)
+boxplot(readyData2$Volume)
+
+
+p <- ggplot(data=readyData2, mapping=aes(x=PositiveServiceReview))
+p + geom_histogram(bins=8)
+boxplot(readyData2$PositiveServiceReview)
+
+p <- ggplot(data=readyData2, mapping=aes(x=NegativeServiceReview))
+p + geom_histogram(bins=8)
+boxplot(readyData2$NegativeServiceReview)
+
+p <- ggplot(data=readyData2, mapping=aes(x=x4StarReviews))
+p + geom_histogram(bins=8)
+boxplot(readyData2$x4StarReviews)
+
+p <- ggplot(data=readyData2, mapping=aes(x=x2StarReviews))
+p + geom_histogram(bins=8)
+boxplot(readyData2$x2StarReviews)
+
+p <- ggplot(data=readyData2, mapping=aes(x=Price))
+p + geom_histogram(bins=8)
+boxplot(readyData2$Price)
+```
+Remove Volume<=3,000
+```{r}
+library(dplyr)
+readyData2<-readyData2%>%
+  filter(Volume<=3000)
+```
+Plots of volume and other variables
+```{r}
+
+p <- ggplot(data = readyData2, mapping = aes(x = Volume, y = ProfitMargin, color=ProfitMargin))
+p + geom_point()
+
+p <- ggplot(data = readyData2, mapping = aes(x = Price, y = Volume))
+p + geom_point()
+
+p <- ggplot(data = readyData2,mapping = aes(x = Volume, y = PositiveServiceReview))
+p + geom_point(size=3) +
+    coord_flip()
+
+p <- ggplot(data = readyData2, mapping = aes(x = Volume, y = x4StarReviews))
+p + geom_point(size=3) +
+    coord_flip()
+```
+
+Training and test sets
+```{r}
+trainSize <- round(nrow(readyData2)*0.7)
+testSize <- nrow(readyData3)-trainSize
+trainSize
+
+set.seed(998)
+training_indices <- sample(seq_len(nrow(readyData2)),size = trainSize)
+trainSet<-readyData2[training_indices,]
+testSet <- readyData2[-training_indices,]
+
+
+```
+
+
+Linear model
+```{r}
+
+lmModel <- lm(formula = Volume~.,data=trainSet)
+summary(lmModel)
+
+```
+```{r}
+predictlmModel<-predict(lmModel,testSet)
+predictlmModel
+```
+
+plot
+```{r}
+plot(lmModel)
+```
+
+Loop to investigate three base models
+```{r}
+a <- c("knn","rf","svm")
+comp_model <- c()
+
+for (i in a){
+  model <- train(Volume~.,trainSet,method=i,trControl="cv")
+  pred <- predict(model,testSet)
+  metric<-postResample(testSet$Volume,pred)
+  comp_model<-cbind(metric,comp_model)
+}
+colnames(comp_model) <- a
+comp_model
+```
+SVM
+```{r}
+svm_Linear <- train(Volume ~., data = trainSet, method = "svmLinear", trControl=fitControl, preProcess = c("center", "scale"), tuneLength = 10)
+svm_Linear
+varImp(svm_Linear)
+svm_Linear$bestTune
+prediction<-predict(svm_Linear,testSet)
+postResample(pred = prediction,obs=testSet$Volume)
+prediction
+```
+
+KKN model
+```{r}
+fitControl<-trainControl(method="repeatedcv",number = 5,repeats=1)
+KNNfit1<-train(Volume~.,data=trainSet,method="knn",trControl=fitControl,preProcess = c("center","scale"), tuneLength=20)
+KNNfit1
+varImp(KNNfit1)
+KNNfit1$bestTune
+prediction1<-predict(KNNfit1,testSet)
+postResample(pred = prediction1,obs=testSet$Volume)
+
+
+```
+Random Forest
+```{r}
+rfGrid<-expand.grid(mtry=c(1,2,3,4,5))
+rfFit1<-train(Volume~.,data=trainSet,method="rf",trControl=fitControl,tuneGrid=rfGrid,importance=TRUE)
+rfFit1
+rfFit1$bestTune
+varImp(rfFit1)
+prediction2<-predict(rfFit1,testSet)
+postResample(pred = prediction2,obs=testSet$Volume)
+prediction2
+
+```
+FINAL MODEL - rf with positive servic review, 4-star review and recommend product
+```{r}
+rfGrid<-expand.grid(mtry=c(1,2,3,4,5))
+rfFit_Final<-train(Volume~PositiveServiceReview + x4StarReviews + Recommendproduct,data=trainSet,method="rf",trControl=fitControl,tuneGrid=rfGrid,importance=TRUE)
+rfFit_Final
+rfFit_Final$bestTune
+varImp(rfFit_Final)
+prediction<-predict(rfFit_Final,testSet)
+postResample(pred = prediction,obs=testSet$Volume)
+prediction
+
+errorMetrics <- function(predictedValues, actualValues) {
+  absoluteError <- predictedValues - actualValues
+  square_error <- absoluteError * absoluteError
+  data.frame(absoluteError, square_error)
+}
+
+errors<-errorMetrics(prediction,testSet$Volume)
+
+plot(testSet$Volume, errors$absoluteError)
+plot(testSet$Volume,errors$square_error)
+
+p<-ggplot(data=testSet, aes(x=Volume, y=errors$absoluteError, color=Volume))
+p+geom_point() +
+  labs(x="Volume", y= "Absolute Errors", title = "Test set: absolute errors")
+
+p<-ggplot(data=testSet, aes(x=Volume, y=errors$square_error, color=Volume))
+p+geom_point() +
+  labs(x="Volume", y= "Square Errors", title = "Test set: square errors")
+
+p<-ggplot(data=testSet, aes(x=Volume, y=errors$absoluteError, color=Volume))
+p+geom_smooth(method = "loess") +
+  scale_x_log10() +
+  labs(x="Volume", y= "Absolute Errors", title = "Test set: absolute errors")
+
+p<-ggplot(data=testSet, aes(x=Volume, y=errors$square_error, color=Volume))
+p+geom_smooth(method = "loess") +
+  scale_x_log10() +
+  labs(x="Volume", y= "Square Errors", title = "Test set: square errors")
+
+
+```
+
+Final predictions
+```{r}
+newDataFrame<-dummyVars("~.",data=NewProductAttributes)
+NewProductAttributes2 <- data.frame(predict(newDataFrame,newdata = NewProductAttributes))
+
+
+NewProductAttributes2<-NewProductAttributes2[-c(1:14,15,17,19)] 
+names(NewProductAttributes2)
+finalPred<-predict(rfFit_Final,NewProductAttributes2)
+finalPred
+```
+
