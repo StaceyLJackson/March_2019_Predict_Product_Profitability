@@ -12,25 +12,25 @@ TECHNICAL APPROACH
 
 1. PRE-PROCESS THE DATA
 
-Missing values check '\n'
-Dummify variables \n
-Outliers detected \n
+Missing values check 
+Dummify variables 
+Outliers detected 
 
 2. ATTRIBUTE SELECTION
 
-Correlation analysis \n
-Decision Tree \n
-Multiple regression to understand the statistical significance of individual variables \n
-Normalising Variables \n
+Correlation analysis
+Decision Tree 
+Multiple regression to understand the statistical significance of individual variables 
+Normalising Variables 
 
 3. DATA PARTITION AND CROSS-VALIDATION 
 
 4. MODELLING
-Set up base models and assess them with different variables \n
-Linear Model \n
-SVM \n
-KNN \n
-Random Forest\n
+Set up base models and assess them with different variables 
+Linear Model
+SVM 
+KNN 
+Random Forest
 
 5. PREDICTION AND ERROR ANALYSIS
 
