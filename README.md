@@ -10,9 +10,11 @@ CSV files of the historical data and the attributes of the potential new product
 
 TECHNICAL APPROACH
 
+LANGUAGE USED: R
+
 1. PRE-PROCESS THE DATA
 
-Missing values check 
+Missing values checked 
 Dummify variables 
 Outliers detected 
 
